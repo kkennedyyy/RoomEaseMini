@@ -1,12 +1,25 @@
+/*
+Defines the main dashboard for the application.
+Displays chore progress, assigned chores, and due dates.
+Also allows the user to add, complete, and delete chores while
+retrieving and updating data throught ChoreViewModel.
+*/
+
 import SwiftUI
 
+// Main screen displaying chores and progress.
 struct ContentView: View {
+    // Creates and manages the view model for chore data
     @StateObject private var viewModel = ChoreViewModel()
+    
+    // Controls whether the Add Chore screen is displayed
     @State private var showAddChore = false
     
     var body: some View {
         NavigationStack {
             VStack(spacing: 16) {
+                // Displays the number of completed chores
+                // and a progress bar showing overall completion
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Household Progress")
                         .font(.headline)
@@ -26,11 +39,13 @@ struct ContentView: View {
                     in: RoundedRectangle(cornerRadius: 16)
                 )
                 .padding(.horizontal)
-                
+
+                // Displays a loading indicator while retrieving chores
                 if viewModel.isLoading {
                     Spacer()
                     ProgressView("Loading chores...")
                     Spacer()
+                // Displays a message if no chores
                 } else if viewModel.chores.isEmpty {
                     Spacer()
                     ContentUnavailableView(
@@ -42,15 +57,19 @@ struct ContentView: View {
                     )
                     Spacer()
                 } else {
+                    // Displays all chores from Supabase
                     List {
                         ForEach(viewModel.chores) { chore in
                             HStack(spacing: 12) {
                                 Button {
+                                    // Toggles a chore between completed or incomplete
                                     Task {
                                         await viewModel.toggleChore(chore)
                                     }
                                 } label: {
                                     Image(
+                                        // Displays a filled green checkmark for completed chores
+                                        // and purple for incomplete
                                         systemName: chore.isCompleted
                                         ? "checkmark.circle.fill"
                                         : "circle"
@@ -62,7 +81,8 @@ struct ContentView: View {
                                     )
                                 }
                                 .buttonStyle(.plain)
-                                
+                                // Displays the chore's title,
+                                // assigned roommate, and due date
                                 VStack(alignment: .leading, spacing: 5) {
                                     Text(chore.title)
                                         .font(.headline)
@@ -80,7 +100,8 @@ struct ContentView: View {
                                 }
                                 
                                 Spacer()
-                                
+
+                                // Deletes the selected chore from Supabase
                                 Button(role: .destructive) {
                                     Task {
                                         await viewModel.deleteChore(chore)
@@ -97,6 +118,8 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("RoomEase Mini")
+            // Adds a + button to open the Add Chore screen
+            // The button is disabled while chores are loading
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -107,12 +130,15 @@ struct ContentView: View {
                     .disabled(viewModel.isLoading)
                 }
             }
+            // Presents AddChoreView as a sheet when the + button is tapped
             .sheet(isPresented: $showAddChore) {
                 AddChoreView(viewModel: viewModel)
             }
+            // Allows the users to pull down on the list to get chores from Supabase
             .refreshable {
                 await viewModel.refresh()
             }
+            // Alerts when error occurs during a database or authentication operation
             .alert(
                 "Something Went Wrong",
                 isPresented: Binding(
@@ -126,6 +152,7 @@ struct ContentView: View {
             } message: {
                 Text(viewModel.errorMessage ?? "")
             }
+            // Signs in the user and loads their chores when main screen first appears
             .task {
                 await viewModel.initialize()
             }
